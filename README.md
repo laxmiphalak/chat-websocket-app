@@ -1,6 +1,6 @@
-# Getting Started with Create React App
+# Getting Started with Chat Websocket App
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Build a chat app using Websockets
 
 ## Available Scripts
 
