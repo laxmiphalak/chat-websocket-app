@@ -8,7 +8,7 @@
 import './App.css';
 import Chat from './modules/Chat';
 import Login from './modules/Login';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 function App() {
   // Store the current user's ID (null = not logged in)

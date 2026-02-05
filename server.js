@@ -80,10 +80,10 @@ wss.on('connection', function connection(ws) {
       }
     } 
     // Handle chat messages
-    else if (data.type === 'message') {\n      // Broadcast the message to all connected users
+    else if (data.type === 'message') {     // Broadcast the message to all connected users
       for (const [userId, socket] of users.entries()) {
         if (socket.readyState === WebSocket.OPEN) {
-          console.log(`Sending message to ${userId}: ${JSON.stringify(data)}`);\n          // Send message with all metadata for client reconciliation
+          console.log(`Sending message to ${userId}: ${JSON.stringify(data)}`);       // Send message with all metadata for client reconciliation
           socket.send(JSON.stringify({
             sender: data.sender,
             text: data.text,
