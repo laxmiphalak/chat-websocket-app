@@ -17,8 +17,16 @@ export default function Login({ setUserId }) {
                 onSubmit={submit}
                 className="login-form"
             >
-                <input className="login-input" name="username" />
-                <button className="login-btn" type="submit">Login</button>
+                <h1 className="login-title">WebSocket Chat</h1>
+                <p className="login-subtitle">Enter your username to start chatting</p>
+                <input 
+                    className="login-input" 
+                    name="username" 
+                    placeholder="Username"
+                    required
+                    autoFocus
+                />
+                <button className="login-btn" type="submit">Join Chat</button>
             </form>
         </div>
     )
