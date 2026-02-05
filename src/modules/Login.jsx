@@ -1,6 +1,18 @@
+/**
+ * Login Component
+ * 
+ * Simple username-based authentication screen.
+ * No password required - this is a demo chat application.
+ * On submit, sets the userId in parent component to enter chat.
+ */
+
 import './styles.css';
 
 export default function Login({ setUserId }) {
+    /**
+     * Handles login form submission
+     * Extracts username from form and passes to parent component
+     */
     function submit(event) {
         event.preventDefault();
 
@@ -8,6 +20,7 @@ export default function Login({ setUserId }) {
         const formData = new FormData(form);
         const userId = formData.get('username');
 
+        // Set userId in parent App component to switch to Chat view
         setUserId(userId);
     }
 
