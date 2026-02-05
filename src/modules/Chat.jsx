@@ -1,13 +1,34 @@
+/**
+ * Chat Component
+ * 
+ * Main chat interface that handles:
+ * - WebSocket connection management
+ * - Real-time message sending/receiving
+ * - Online users tracking
+ * - Optimistic UI updates
+ * - Auto-reconnection on connection loss
+ */
+
 import { useState, useEffect } from 'react';
 import './styles.css';
 
 export default function Chat({ userId }) {
+    // Message history for the chat
     const [messages, setMessages] = useState([]);
+    // Current message being typed
     const [newMessage, setNewMessage] = useState('');
+    // WebSocket connection status
     const [webSocketReady, setWebSocketReady] = useState(false);
+    // WebSocket instance
     const [webSocket, setWebSocket] = useState(new WebSocket("ws://localhost:3001/ws"));
+    // List of currently online users
     const [onlineUsers, setOnlineUsers] = useState([]);
 
+    /**
+     * Formats timestamp to readable time (HH:MM)
+     * @param {number} ts - Unix timestamp
+     * @returns {string} Formatted time string
+     */
     const formatTime = (ts) => {
         try {
             return new Date(ts).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
@@ -16,7 +37,12 @@ export default function Chat({ userId }) {
         }
     }
 
+    // Setup WebSocket event handlers and lifecycle management
     useEffect(() => {
+        /**
+         * Sends userId to server once when connection opens
+         * Uses a flag on the WebSocket instance to prevent duplicate sends
+         */
         const sendUserId = () => {
             if (userId && !webSocket._userIdSent && webSocket.readyState === WebSocket.OPEN) {
                 webSocket.send(JSON.stringify({type: 'setUserId', userId}));
@@ -24,30 +50,33 @@ export default function Chat({ userId }) {
             }
         };
         
+        // Handle WebSocket connection open event
         webSocket.onopen = (e) => {
             setWebSocketReady(true);
             sendUserId();
         }
         
-        // If already open, send immediately
+        // If WebSocket is already open when component mounts, send userId immediately
         if (webSocket.readyState === WebSocket.OPEN && !webSocket._userIdSent) {
             setWebSocketReady(true);
             sendUserId();
         }
 
+        // Handle incoming messages from server
         webSocket.onmessage = (event) => {
             const message = JSON.parse(event.data);
             
-            // Handle online users list update
+            // Handle online users list update from server
             if (message.type === 'users') {
                 setOnlineUsers(message.users || []);
                 return;
             }
             
+            // Ensure all messages have a timestamp
             message.timestamp = message.timestamp || Date.now();
 
             setMessages((prev) => {
-                // If server echoes with localId, replace pending message
+                // If server echoes with localId, replace the pending optimistic message
                 if (message.localId) {
                     const idx = prev.findIndex(m => m.localId === message.localId);
                     if (idx !== -1) {
@@ -57,7 +86,7 @@ export default function Chat({ userId }) {
                     }
                 }
 
-                // If sender is current user, try to dedupe by matching a pending optimistic message
+                // Deduplicate: if we receive our own message, remove pending optimistic version
                 if (message.sender === userId) {
                     const idx = prev.findIndex(m => m.sender === userId && m.pending && m.text === message.text);
                     if (idx !== -1) {
@@ -71,6 +100,7 @@ export default function Chat({ userId }) {
             })
         }
 
+        // Handle WebSocket connection close - attempt to reconnect after 1 second
         webSocket.onclose = function (event) {
             setWebSocketReady(false);
             setTimeout(() => {
@@ -78,33 +108,43 @@ export default function Chat({ userId }) {
             }, 1000);
           };
       
+          // Handle WebSocket errors
           webSocket.onerror = function (err) {
             console.log('Socket encountered error: ', err.message, 'Closing socket');
             setWebSocketReady(false);
             webSocket.close();
           };
       
+          // Cleanup: close WebSocket when component unmounts
           return () => {
              webSocket.close();
           };
     }, [webSocket, userId])
 
+    /**
+     * Handles sending a new message
+     * Uses optimistic UI updates - message appears immediately before server confirmation
+     */
     const onSend = () => {
         if (newMessage.trim() !== '' && webSocketReady) {
+            // Generate unique local ID for optimistic update tracking
             const localId = 'local-' + Date.now() + '-' + Math.floor(Math.random() * 10000);
+            
+            // Create optimistic message object (shown immediately in UI)
             const optimistic = {
                 localId,
                 type: 'message',
                 text: newMessage,
                 sender: userId,
                 timestamp: Date.now(),
-                pending: true,
+                pending: true, // Mark as pending until server confirms
                 isSelf: true
             };
 
+            // Add optimistic message to UI immediately
             setMessages(prev => [...prev, optimistic]);
 
-            // include localId and timestamp so server can echo it back if supported
+            // Send message to server (include localId for reconciliation)
             webSocket.send(JSON.stringify({
                 type: 'message',
                 text: newMessage,
