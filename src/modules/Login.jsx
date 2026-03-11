@@ -6,9 +6,10 @@
  * On submit, sets the userId in parent component to enter chat.
  */
 
+import { memo } from 'react';
 import './styles.css';
 
-export default function Login({ setUserId }) {
+function Login({ setUserId }) {
     /**
      * Handles login form submission
      * Extracts username from form and passes to parent component
@@ -44,3 +45,5 @@ export default function Login({ setUserId }) {
         </div>
     )
 }
+
+export default memo(Login);

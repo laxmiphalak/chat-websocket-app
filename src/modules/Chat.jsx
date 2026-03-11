@@ -9,7 +9,10 @@
  * - Auto-reconnection on connection loss
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import ChatHeader from './ChatHeader';
+import MessageList from './MessageList';
+import ComposeBar from './ComposeBar';
 import './styles.css';
 
 export default function Chat({ userId }) {
@@ -20,25 +23,28 @@ export default function Chat({ userId }) {
     // WebSocket connection status
     const [webSocketReady, setWebSocketReady] = useState(false);
     // WebSocket instance
-    const [webSocket, setWebSocket] = useState(new WebSocket("ws://localhost:3001/ws"));
+    const [webSocket, setWebSocket] = useState(null);
     // List of currently online users
     const [onlineUsers, setOnlineUsers] = useState([]);
+    // Reference to messages container and end for auto-scroll
+    const messagesEndRef = useRef(null);
+    const messagesContainerRef = useRef(null);
+    const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);
 
-    /**
-     * Formats timestamp to readable time (HH:MM)
-     * @param {number} ts - Unix timestamp
-     * @returns {string} Formatted time string
-     */
-    const formatTime = (ts) => {
-        try {
-            return new Date(ts).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
-        } catch (e) {
-            return '';
-        }
-    }
+    // Initialize WebSocket connection once
+    useEffect(() => {
+        const ws = new WebSocket("ws://localhost:3001/ws");
+        setWebSocket(ws);
+        
+        return () => {
+            ws.close();
+        };
+    }, []);
 
     // Setup WebSocket event handlers and lifecycle management
     useEffect(() => {
+        if (!webSocket) return;
+
         /**
          * Sends userId to server once when connection opens
          * Uses a flag on the WebSocket instance to prevent duplicate sends
@@ -104,7 +110,8 @@ export default function Chat({ userId }) {
         webSocket.onclose = function (event) {
             setWebSocketReady(false);
             setTimeout(() => {
-              setWebSocket(new WebSocket("ws://localhost:3001/ws"));
+              const ws = new WebSocket("ws://localhost:3001/ws");
+              setWebSocket(ws);
             }, 1000);
           };
       
@@ -114,19 +121,30 @@ export default function Chat({ userId }) {
             setWebSocketReady(false);
             webSocket.close();
           };
-      
-          // Cleanup: close WebSocket when component unmounts
-          return () => {
-             webSocket.close();
-          };
-    }, [webSocket, userId])
+    }, [webSocket, userId]);
+
+    // Track scroll position to avoid forcing the user back down
+    const handleScroll = useCallback(() => {
+        const el = messagesContainerRef.current;
+        if (!el) return;
+        // if we're within 50px of the bottom, keep auto‑scroll on
+        const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 50;
+        setAutoScrollEnabled(nearBottom);
+    }, []);
+
+    // Auto-scroll to bottom only when permitted
+    useEffect(() => {
+        if (autoScrollEnabled) {
+            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }
+    }, [messages, autoScrollEnabled]);
 
     /**
      * Handles sending a new message
      * Uses optimistic UI updates - message appears immediately before server confirmation
      */
-    const onSend = () => {
-        if (newMessage.trim() !== '' && webSocketReady) {
+    const onSend = useCallback(() => {
+        if (newMessage.trim() !== '' && webSocketReady && webSocket) {
             // Generate unique local ID for optimistic update tracking
             const localId = 'local-' + Date.now() + '-' + Math.floor(Math.random() * 10000);
             
@@ -155,63 +173,38 @@ export default function Chat({ userId }) {
 
             setNewMessage('');
         }
-    }
+    }, [newMessage, webSocketReady, webSocket, userId]);
+
+    // Memoized event handlers
+    const handleInputChange = useCallback((e) => {
+        setNewMessage(e.target.value);
+    }, []);
+
+    const handleKeyDown = useCallback((e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            onSend();
+        }
+    }, [onSend]);
 
     return (
         <div>
             {
                 webSocketReady && userId && (
                     <div className="chat-container">
-                        <div className="chat-header">
-                            <div className="header-left">
-                                <div className="current-user">
-                                    <div className="user-badge">{userId.slice(0, 2).toUpperCase()}</div>
-                                    <span className="user-name">{userId}</span>
-                                </div>
-                            </div>
-                            <div className="header-right">
-                                <div className="online-users">
-                                    <span className="online-count">{onlineUsers.length} online</span>
-                                    <div className="users-list">
-                                        {onlineUsers.map((user, idx) => (
-                                            <div key={idx} className="user-item">
-                                                <div className="user-status"></div>
-                                                <span>{user}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div className="messages">
-                            {
-                                messages.map((message, index) => (
-                                    <div key={message.localId || index} className={`message ${message.isSelf ? 'self' : 'other'} ${message.pending ? 'pending' : ''}`}>
-                                        {!message.isSelf && <div className="avatar">{(message.sender || '').toString().slice(0,2).toUpperCase()}</div>}
-                                        <div className="message-body">
-                                            {!message.isSelf && <div className="sender">{message.sender}</div>}
-                                            <div className="message-text">{message.text}</div>
-                                            <div className="timestamp">{formatTime(message.timestamp)}</div>
-                                        </div>
-                                    </div>
-                                ))
-                            }
-                        </div>
-                        <div className="compose">
-                            <input
-                                className="compose-input"
-                                type="text"
-                                value={newMessage}
-                                onChange={(e) => setNewMessage(e.target.value)}
-                                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onSend(); } }}
-                                placeholder="Message"
-                            />
-                            <button className="compose-send" onClick={onSend} aria-label="Send message">
-                                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
-                                </svg>
-                            </button>
-                        </div>
+                        <ChatHeader userId={userId} onlineUsers={onlineUsers} />
+                        <MessageList
+                            messages={messages}
+                            messagesEndRef={messagesEndRef}
+                            containerRef={messagesContainerRef}
+                            onScroll={handleScroll}
+                        />
+                        <ComposeBar 
+                            newMessage={newMessage}
+                            onSend={onSend}
+                            handleInputChange={handleInputChange}
+                            handleKeyDown={handleKeyDown}
+                        />
                     </div>
                 )
             }
