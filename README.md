@@ -14,6 +14,7 @@ A real-time chat application built with React and WebSocket, featuring a modern 
 - **Auto-reconnect** - Automatic WebSocket reconnection on connection loss
 - **Responsive Design** - Works seamlessly on desktop and mobile devices
 - **Keyboard Shortcuts** - Send messages with Enter key
+- **Smart Scrolling** - chat history is scrollable; automatic scroll only when you're at the bottom
 
 ## 🚀 Quick Start
 
@@ -30,7 +31,7 @@ git clone <repository-url>
 cd chat-websocket-app
 ```
 
-2. Install dependencies:
+2. Install dependencies (includes the `ws` WebSocket library used by the server):
 ```bash
 npm install
 ```
@@ -60,17 +61,23 @@ Client will open at `http://localhost:3000`
 
 ```
 chat-websocket-app/
-├── public/               # Static files
+├── public/               # Static files (index.html, manifest.json, etc.)
 ├── src/
-│   ├── modules/
-│   │   ├── Chat.jsx     # Main chat component
-│   │   ├── Login.jsx    # Login screen
-│   │   └── styles.css   # Component styles
-│   ├── App.js           # Root component
-│   ├── App.css          # App styles
-│   └── index.js         # Entry point
-├── server.js            # WebSocket server
-└── package.json         # Dependencies & scripts
+│   ├── modules/          # reusable UI pieces
+│   │   ├── Chat.jsx       # Main chat interface + logic
+│   │   ├── ChatHeader.jsx # Top bar showing current user & online list
+│   │   ├── ComposeBar.jsx # Message input & send button
+│   │   ├── Login.jsx      # Username entry screen
+│   │   ├── MessageList.jsx# Scrollable message container
+│   │   └── styles.css     # Shared component styles
+│   ├── App.js            # Root component handling routing/login
+│   ├── App.css           # Global styles
+│   ├── index.js          # React entry point
+│   ├── setupTests.js     # Testing setup
+│   └── ...               # other Create React App files
+├── server.js             # Simple WebSocket server using ws
+├── package.json          # Dependencies & npm scripts
+└── package-lock.json     # Locked dependency tree
 ```
 
 ## 🔧 Available Scripts
